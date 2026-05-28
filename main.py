@@ -445,7 +445,7 @@ def get_all_courses():
 @app.route('/' + COURSES + '/<int:course_id>', methods=['GET'])
 def get_a_course(course_id):
 
-    # Check if business exists
+    # Check if course exists
     course_key = client.key(COURSES, course_id)
     course = client.get(key=course_key)
     if not course:
@@ -462,6 +462,70 @@ def get_a_course(course_id):
         }
     
     return response, 200
+
+# 10 Update a course, used with admin
+@app.route('/' + COURSES + '/<int:course_id>', methods=['PATCH'])
+def update_a_course(course_id):
+    content = request.get_json()
+
+    # Validate the jwt
+    try:
+        payload = verify_jwt(request)
+    except AuthError:
+        return  ERROR_UNAUTHORIZED_MESSAGE
+
+    user_sub = payload['sub']
+    query = client.query(kind=USERS)
+
+    # Check if course exist
+    course_key = client.key(COURSES, course_id)
+    course = client.get(key=course_key)
+    if not course:
+        return ERROR_PERMISSION_MESSAGE
+
+    # Check if user is admin
+    query.add_filter("sub", "=", user_sub)
+    query_result = list(query.fetch())
+    print("query_result:", query_result)
+
+    ## Return error if there is no such user
+    if len(query_result) == 0:
+        return ERROR_PERMISSION_MESSAGE
+    
+    ## Return error if requester is not admin
+    requester = query_result[0]
+    if requester["role"] != "admin":
+        return ERROR_PERMISSION_MESSAGE
+    
+    # When updating instructor, check if instructor exist
+    if "instructor_id" in content:
+        instructor_id = content["instructor_id"]
+        instructor_key = client.key(USERS, instructor_id)
+        instructor = client.get(instructor_key)
+        if instructor is None:
+            return ({"Error": "The value of instructor_id is invalid"}, 409)
+        if instructor["role"] != "instructor":
+            return ({"Error": "The value of instructor_id is invalid"}, 409)
+        else:
+            course["instructor_id"] = content["instructor_id"]
+    
+    # Update the rest only if they aera specified in the request
+    if "subject" in content:
+        course["subject"] = content["subject"]
+
+    if "number" in content:
+        course["number"] = content["number"]
+
+    if "title" in content:
+        course["title"] = content["title"]
+
+    if "term" in content:
+        course["term"] = content["term"]
+
+    course["id"] = course_id
+    course["self"] = request.host_url + "courses/" + str(course_id)
+
+    return course, 200
 
 
 # Decode the JWT supplied in the Authorization header
