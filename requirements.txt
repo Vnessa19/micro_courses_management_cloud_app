@@ -1,0 +1,8 @@
+Flask==3.1.3
+google-cloud-datastore
+google-cloud-storage==3.10.1
+requests
+python-jose
+Authlib
+six
+gunicorn
