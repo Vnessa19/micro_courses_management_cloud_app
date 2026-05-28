@@ -562,6 +562,81 @@ def delete_a_course(course_id):
 
     return "", 204
 
+# 12. Update enrollment in a course, used with admin and instructor
+@app.route('/' + COURSES + '/<int:course_id>' + '/students', methods=['PATCH'])
+def update_enrollment(course_id):
+
+    # Validate the jwt
+    try:
+        payload = verify_jwt(request)
+    except AuthError:
+        return  ERROR_UNAUTHORIZED_MESSAGE
+    
+    # Check if course exist
+    course_key = client.key(COURSES, course_id)
+    course = client.get(key=course_key)
+    print(course)
+    if not course:
+        return ERROR_PERMISSION_MESSAGE
+    
+    # Check if user is admin or instructor
+    user_sub = payload['sub']
+    query = client.query(kind=USERS)
+    query.add_filter("sub", "=", user_sub)
+    query_result = list(query.fetch())
+    print("query_result:", query_result)
+
+    ## Return error if there is no such user
+    if len(query_result) == 0:
+        return ERROR_PERMISSION_MESSAGE
+    
+    ## Return error if requester is not admin
+    requester = query_result[0]
+    if requester["role"] == "admin":
+        pass
+    elif requester["role"] == "instructor" and course["instructor_id"] == requester.key.id:
+        pass
+    else:
+        return ERROR_PERMISSION_MESSAGE
+    
+    # Check if enrollment data in the arrays are valid
+    ## check if common value exist in "add" and "remove"
+    content = request.get_json()
+
+    add_list = content["add"]
+    remove_list = content["remove"]
+    common_students = set(add_list) & set(remove_list)
+    if common_students:
+        return {"Error": "Enrollment data is invalid"}, 409
+    
+    ## check all id in list are students
+    all_students_id = add_list + remove_list
+    for student_id in all_students_id:
+        student_key = client.key(USERS,student_id)
+        student = client.get(student_key)
+        
+        if student is None:
+            return {"Error": "Enrollment data is invalid"}, 409
+        
+        if student["role"] != "student":
+            return {"Error": "Enrollment data is invalid"}, 409
+    
+    # Add students, if in add but already enrolled, skip; if in remove but not enrolled, skip
+    if "student" not in course:
+        course["students"] = []
+    
+    for student in add_list:
+        if student not in course["students"]:
+            course["students"].append(student)
+    
+    for student in remove_list:
+        if student in course["students"]:
+            course["students"].remove(student)
+    
+    client.put(course)
+    return "", 200
+
+
 # Decode the JWT supplied in the Authorization header
 @app.route('/decode', methods=['GET'])
 def decode_jwt():
