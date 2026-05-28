@@ -474,16 +474,15 @@ def update_a_course(course_id):
     except AuthError:
         return  ERROR_UNAUTHORIZED_MESSAGE
 
-    user_sub = payload['sub']
-    query = client.query(kind=USERS)
-
     # Check if course exist
     course_key = client.key(COURSES, course_id)
     course = client.get(key=course_key)
     if not course:
         return ERROR_PERMISSION_MESSAGE
-
+    
     # Check if user is admin
+    user_sub = payload['sub']
+    query = client.query(kind=USERS)
     query.add_filter("sub", "=", user_sub)
     query_result = list(query.fetch())
     print("query_result:", query_result)
@@ -527,6 +526,41 @@ def update_a_course(course_id):
 
     return course, 200
 
+# 11 Delete a course, used it with admin
+@app.route('/' + COURSES + '/<int:course_id>', methods=['DELETE'])
+def delete_a_course(course_id):
+    
+    # Validate the jwt
+    try:
+        payload = verify_jwt(request)
+    except AuthError:
+        return  ERROR_UNAUTHORIZED_MESSAGE
+    
+    # Check if course exist
+    course_key = client.key(COURSES, course_id)
+    course = client.get(key=course_key)
+    if not course:
+        return ERROR_PERMISSION_MESSAGE
+    
+    # Check if user is admin
+    user_sub = payload['sub']
+    query = client.query(kind=USERS)
+    query.add_filter("sub", "=", user_sub)
+    query_result = list(query.fetch())
+    print("query_result:", query_result)
+
+    ## Return error if there is no such user
+    if len(query_result) == 0:
+        return ERROR_PERMISSION_MESSAGE
+    
+    ## Return error if requester is not admin
+    requester = query_result[0]
+    if requester["role"] != "admin":
+        return ERROR_PERMISSION_MESSAGE
+    
+    client.delete(course_key)
+
+    return "", 204
 
 # Decode the JWT supplied in the Authorization header
 @app.route('/decode', methods=['GET'])
