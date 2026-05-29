@@ -562,7 +562,7 @@ def delete_a_course(course_id):
 
     return "", 204
 
-# 12. Update enrollment in a course, used with admin and instructor
+# 12. Update enrollment in a course, used by admin and instructor of that course
 @app.route('/' + COURSES + '/<int:course_id>' + '/students', methods=['PATCH'])
 def update_enrollment(course_id):
 
@@ -579,7 +579,7 @@ def update_enrollment(course_id):
     if not course:
         return ERROR_PERMISSION_MESSAGE
     
-    # Check if user is admin or instructor
+    # Check if user is admin or instructor of the course
     user_sub = payload['sub']
     query = client.query(kind=USERS)
     query.add_filter("sub", "=", user_sub)
@@ -590,7 +590,7 @@ def update_enrollment(course_id):
     if len(query_result) == 0:
         return ERROR_PERMISSION_MESSAGE
     
-    ## Return error if requester is not admin
+    ## Return error if requester is not admin or insturctor of the course
     requester = query_result[0]
     if requester["role"] == "admin":
         pass
@@ -622,7 +622,7 @@ def update_enrollment(course_id):
             return {"Error": "Enrollment data is invalid"}, 409
     
     # Add students, if in add but already enrolled, skip; if in remove but not enrolled, skip
-    if "student" not in course:
+    if "students" not in course:
         course["students"] = []
     
     for student in add_list:
@@ -636,6 +636,50 @@ def update_enrollment(course_id):
     client.put(course)
     return "", 200
 
+# 13. Get enrollment for a course, used by admin or instructor of that course. 
+@app.route('/' + COURSES + '/<int:course_id>' + '/students', methods=['GET'])
+def get_enrollment(course_id):
+
+    # Validate the jwt
+    try:
+        payload = verify_jwt(request)
+    except AuthError:
+        return  ERROR_UNAUTHORIZED_MESSAGE
+    
+    # Check if course exist
+    course_key = client.key(COURSES, course_id)
+    course = client.get(key=course_key)
+    print(course)
+    if not course:
+        return ERROR_PERMISSION_MESSAGE
+    
+    # Check if user is admin or instructor of the course
+    user_sub = payload['sub']
+    query = client.query(kind=USERS)
+    query.add_filter("sub", "=", user_sub)
+    query_result = list(query.fetch())
+    print("query_result:", query_result)
+
+    ## Return error if there is no such user
+    if len(query_result) == 0:
+        return ERROR_PERMISSION_MESSAGE
+    
+    ## Return error if requester is not admin or insturctor of the course
+    requester = query_result[0]
+    if requester["role"] == "admin":
+        pass
+    elif requester["role"] == "instructor" and course["instructor_id"] == requester.key.id:
+        pass
+    else:
+        return ERROR_PERMISSION_MESSAGE
+    
+    response = []
+    if "students" in course:
+        response = course["students"]
+
+
+    return response, 200
+        
 
 # Decode the JWT supplied in the Authorization header
 @app.route('/decode', methods=['GET'])
