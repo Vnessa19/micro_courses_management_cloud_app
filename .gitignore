@@ -5,3 +5,7 @@ __pycache__/
 .DS_Store
 .env
 *.log
+*.postman_collection.json
+*.postman_environment.json
+*.pdf
+*.zip

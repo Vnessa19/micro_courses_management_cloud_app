@@ -205,7 +205,26 @@ def get_user(user_id):
     # Find out if the JWT owner is student and target_user itself
     elif jwt_owner.key.id == user_id:
         courses = []
+
+        # if the user is instructor, check if they teach any course and add courses 
+        if target_user["role"] == "instructor":
+            query = client.query(kind=COURSES)
+            query.add_filter("instructor_id", "=", user_id)
+
+            for course in query.fetch():
+                courses.append(request.host_url + "courses/" + str(course.key.id))
+
+        # if the user is student, check if they enroll any course and add courses
+        if target_user["role"] == "student":
+            query = client.query(kind=COURSES)
+
+            for course in query.fetch():
+                print(course)
+                if "students" in course and user_id in course["students"]:
+                    courses.append(request.host_url + "courses/" + str(course.key.id))
+
         response = dict(target_user)
+        response.pop("avatar", None)
         response["id"] = target_user.key.id
         response["courses"] = courses
         if "avatar" in target_user:
