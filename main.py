@@ -28,12 +28,8 @@ ERROR_NOT_FOUND_MESSAGE = ({"Error": "Not found"}, 404)
 
 # Update the values of the following 3 variables
 CLIENT_ID = 'tgwSUbmiN1HsqRNcTr3sZ5wVS4xGE4ER'
-CLIENT_SECRET = 'F0z-ZDcXSOnnBen5g2m0GLeKBGlIcUH9UPfbOZLI4ueBK8gRgWZoiRklEHqwjMl4'
+CLIENT_SECRET = os.environ.get("AUTH0_CLIENT_SECRET")
 DOMAIN = 'dev-4rugwp0wj8ra1j1g.us.auth0.com'
-# For example
-# DOMAIN = '493-24-spring.us.auth0.com'
-# Note: don't include the protocol in the value of the variable DOMAIN
-
 ALGORITHMS = ["RS256"]
 
 oauth = OAuth(app)
